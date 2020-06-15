@@ -187,15 +187,6 @@ func (c *udpConn) Write(buf []byte) (int, error) {
 	return n, err
 }
 
-// Implements buf.ActivityNotifiable
-func (c *udpConn) NotifyActivity() error {
-	if c.done.Done() {
-		return newError("connection is already closed")
-	}
-	c.updateActivity()
-	return nil
-}
-
 func (c *udpConn) Close() error {
 	common.Must(c.done.Close())
 	common.Must(common.Close(c.writer))
@@ -207,7 +198,7 @@ func (c *udpConn) RemoteAddr() net.Addr {
 }
 
 func (c *udpConn) LocalAddr() net.Addr {
-	return c.remote
+	return c.local
 }
 
 func (*udpConn) SetDeadline(time.Time) error {
