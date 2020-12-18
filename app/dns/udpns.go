@@ -36,7 +36,6 @@ type ClassicNameServer struct {
 }
 
 func NewClassicNameServer(address net.Destination, dispatcher routing.Dispatcher, clientIP net.IP) *ClassicNameServer {
-
 	// default to 53 if unspecific
 	if address.Port == 0 {
 		address.Port = net.Port(53)
@@ -55,7 +54,10 @@ func NewClassicNameServer(address net.Destination, dispatcher routing.Dispatcher
 		Execute:  s.Cleanup,
 	}
 	s.udpServer = udp.NewDispatcher(dispatcher, s.HandleResponse)
-	newError("DNS: created udp client inited for ", address.NetAddr()).AtInfo().WriteToLog()
+	newError("DNS: created UDP client inited for ", address.NetAddr()).AtInfo().WriteToLog()
+	if clientIP != nil {
+		newError("DNS: UDP client ", address.NetAddr(), " uses clientip ", clientIP.String()).AtInfo().WriteToLog()
+	}
 	return s
 }
 
@@ -105,7 +107,6 @@ func (s *ClassicNameServer) Cleanup() error {
 }
 
 func (s *ClassicNameServer) HandleResponse(ctx context.Context, packet *udp_proto.Packet) {
-
 	ipRec, err := parseResponse(packet.Payload.Bytes())
 	if err != nil {
 		newError(s.name, " fail to parse responded DNS udp").AtError().WriteToLog()
@@ -240,7 +241,6 @@ func (s *ClassicNameServer) findIPsForDomain(domain string, option IPOption) ([]
 }
 
 func (s *ClassicNameServer) QueryIP(ctx context.Context, domain string, option IPOption) ([]net.IP, error) {
-
 	fqdn := Fqdn(domain)
 
 	ips, err := s.findIPsForDomain(fqdn, option)

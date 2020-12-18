@@ -97,7 +97,16 @@ func New(ctx context.Context, config *Config) (*Server, error) {
 	addNameServer := func(ns *NameServer) int {
 		endpoint := ns.Address
 		address := endpoint.Address.AsAddress()
-		if address.Family().IsDomain() && address.Domain() == "localhost" {
+
+		var myClientIP net.IP
+		if len(ns.ClientIp) == net.IPv4len || len(ns.ClientIp) == net.IPv6len {
+			myClientIP = net.IP(ns.ClientIp)
+		} else {
+			myClientIP = server.clientIP
+		}
+
+		switch {
+		case address.Family().IsDomain() && address.Domain() == "localhost":
 			server.clients = append(server.clients, NewLocalNameServer())
 			// Priotize local domains with specific TLDs or without any dot to local DNS
 			// References:
@@ -115,15 +124,17 @@ func New(ctx context.Context, config *Config) (*Server, error) {
 				{Type: DomainMatchingType_Subdomain, Domain: "test"},
 			}
 			ns.PrioritizedDomain = append(ns.PrioritizedDomain, localTLDsAndDotlessDomains...)
-		} else if address.Family().IsDomain() && strings.HasPrefix(address.Domain(), "https+local://") {
+
+		case address.Family().IsDomain() && strings.HasPrefix(address.Domain(), "https+local://"):
 			// URI schemed string treated as domain
 			// DOH Local mode
 			u, err := url.Parse(address.Domain())
 			if err != nil {
 				log.Fatalln(newError("DNS config error").Base(err))
 			}
-			server.clients = append(server.clients, NewDoHLocalNameServer(u, server.clientIP))
-		} else if address.Family().IsDomain() && strings.HasPrefix(address.Domain(), "https://") {
+			server.clients = append(server.clients, NewDoHLocalNameServer(u, myClientIP))
+
+		case address.Family().IsDomain() && strings.HasPrefix(address.Domain(), "https://"):
 			// DOH Remote mode
 			u, err := url.Parse(address.Domain())
 			if err != nil {
@@ -134,13 +145,14 @@ func New(ctx context.Context, config *Config) (*Server, error) {
 
 			// need the core dispatcher, register DOHClient at callback
 			common.Must(core.RequireFeatures(ctx, func(d routing.Dispatcher) {
-				c, err := NewDoHNameServer(u, d, server.clientIP)
+				c, err := NewDoHNameServer(u, d, myClientIP)
 				if err != nil {
 					log.Fatalln(newError("DNS config error").Base(err))
 				}
 				server.clients[idx] = c
 			}))
-		} else {
+
+		default:
 			// UDP classic DNS mode
 			dest := endpoint.AsDestination()
 			if dest.Network == net.Network_Unknown {
@@ -151,7 +163,7 @@ func New(ctx context.Context, config *Config) (*Server, error) {
 				server.clients = append(server.clients, nil)
 
 				common.Must(core.RequireFeatures(ctx, func(d routing.Dispatcher) {
-					server.clients[idx] = NewClassicNameServer(dest, d, server.clientIP)
+					server.clients[idx] = NewClassicNameServer(dest, d, myClientIP)
 				}))
 			}
 		}
