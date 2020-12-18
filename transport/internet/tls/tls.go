@@ -7,11 +7,9 @@ import (
 
 	"v2ray.com/core/common/buf"
 	"v2ray.com/core/common/net"
-
-	utls "github.com/refraction-networking/utls"
 )
 
-//go:generate errorgen
+//go:generate go run v2ray.com/core/common/errors/errorgen
 
 var (
 	_ buf.Writer = (*Conn)(nil)
@@ -45,6 +43,7 @@ func Client(c net.Conn, config *tls.Config) net.Conn {
 	return &Conn{Conn: tlsConn}
 }
 
+/*
 func copyConfig(c *tls.Config) *utls.Config {
 	return &utls.Config{
 		NextProtos:         c.NextProtos,
@@ -59,6 +58,7 @@ func UClient(c net.Conn, config *tls.Config) net.Conn {
 	uConfig := copyConfig(config)
 	return utls.Client(c, uConfig)
 }
+*/
 
 // Server initiates a TLS server handshake on the given connection.
 func Server(c net.Conn, config *tls.Config) net.Conn {
